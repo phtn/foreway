@@ -1,0 +1,54 @@
+{
+  "name": "foreway",
+  "version": "0.1.2",
+  "author": {
+    "name": "phtn",
+    "url": "https://github.com/phtn"
+  },
+  "description": "React components and canvas utilities for building interactive golf course maps.",
+  "keywords": [
+    "react",
+    "golf",
+    "course-map",
+    "canvas",
+    "map-editor"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && bun build ./index.ts --outdir ./dist --target browser --external react --external react-dom && tsc -p tsconfig.build.json",
+    "dev": "bun --hot ./dev-server.ts",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepack": "bun run build",
+    "prepublishOnly": "bun run typecheck && bun run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": ">=18.2.0 || ^19.0.0",
+    "react-dom": ">=18.2.0 || ^19.0.0"
+  }
+}

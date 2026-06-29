@@ -1,0 +1,361 @@
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  .wrap {
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-1);
+    border-bottom: 0.5px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .toolbar span {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-right: 4px;
+  }
+  .tbtn {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .tbtn.on {
+    background: #e8f4e8;
+    border-color: #5a9e4f;
+    color: #27500a;
+    font-weight: 500;
+  }
+  .tbtn.red {
+    border-color: #f09595;
+    color: #a32d2d;
+  }
+  .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+  .hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .canvas-container {
+    position: relative;
+    width: 100%;
+    background: #c9e0c0;
+    height: 500px;
+  }
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+  .statusbar {
+    display: flex;
+    border-top: 0.5px solid var(--border);
+    background: var(--surface-1);
+  }
+  .sstat {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-right: 0.5px solid var(--border);
+  }
+  .sstat:last-child {
+    border-right: none;
+  }
+  .sstat strong {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: block;
+  }
+</style>
+
+<h2 class="sr-only">Golf course outline builder</h2>
+
+<div class="wrap">
+  <div class="toolbar">
+    <span>Course builder</span>
+    <div class="sep"></div>
+    <button class="tbtn on" id="btn-place" onclick="setMode('place')">Place</button>
+    <button class="tbtn" id="btn-move" onclick="setMode('move')">Move</button>
+    <button class="tbtn" id="btn-erase" onclick="setMode('erase')">Erase</button>
+    <div class="sep"></div>
+    <button class="tbtn" onclick="undo()">Undo</button>
+    <button class="tbtn red" onclick="clearAll()">Clear</button>
+    <div class="sep"></div>
+    <label style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px">
+      Smoothness
+      <input type="range" id="tension" min="0" max="1" step="0.05" value="0.5" style="width: 72px" oninput="draw()" />
+    </label>
+    <span class="hint" id="hint-text">Click the canvas to place points</span>
+  </div>
+
+  <div class="canvas-container" id="container">
+    <canvas id="c"></canvas>
+  </div>
+
+  <div class="statusbar">
+    <div class="sstat"><strong id="st-pts">0</strong>Points</div>
+    <div class="sstat"><strong id="st-mode">Place</strong>Mode</div>
+    <div class="sstat"><strong id="st-tip">Click to add</strong>Tip</div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('c')
+  const ctx = canvas.getContext('2d')
+  const container = document.getElementById('container')
+
+  let pts = []
+  let mode = 'place'
+  let dragIdx = -1
+  let dragOX = 0,
+    dragOY = 0
+  const R = 7
+
+  const HINTS = {
+    place: 'Click the canvas to place points',
+    move: 'Drag a dot to reshape',
+    erase: 'Click a dot to remove it'
+  }
+  const TIPS = { place: 'Click to add', move: 'Drag a point', erase: 'Click to delete' }
+
+  function setMode(m) {
+    mode = m
+    dragIdx = -1
+    ;['place', 'move', 'erase'].forEach((t) => document.getElementById('btn-' + t).classList.toggle('on', t === m))
+    canvas.style.cursor = m === 'place' ? 'crosshair' : 'default'
+    document.getElementById('hint-text').textContent = HINTS[m]
+    document.getElementById('st-mode').textContent = m.charAt(0).toUpperCase() + m.slice(1)
+    document.getElementById('st-tip').textContent = TIPS[m]
+  }
+
+  function syncSize() {
+    canvas.width = container.clientWidth
+    canvas.height = container.clientHeight
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect()
+    const src = e.touches ? e.touches[0] : e
+    return {
+      x: src.clientX - rect.left,
+      y: src.clientY - rect.top
+    }
+  }
+
+  function hitTest(pos) {
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const dx = pts[i].x - pos.x,
+        dy = pts[i].y - pos.y
+      if (dx * dx + dy * dy <= (R + 6) * (R + 6)) return i
+    }
+    return -1
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const pos = getPos(e)
+    if (mode === 'place') {
+      pts.push(pos)
+      draw()
+    } else if (mode === 'erase') {
+      const i = hitTest(pos)
+      if (i >= 0) {
+        pts.splice(i, 1)
+        draw()
+      }
+    } else if (mode === 'move') {
+      const i = hitTest(pos)
+      if (i >= 0) {
+        dragIdx = i
+        dragOX = pos.x - pts[i].x
+        dragOY = pos.y - pts[i].y
+        canvas.style.cursor = 'grabbing'
+      }
+    }
+  })
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (mode === 'move') {
+      const pos = getPos(e)
+      if (dragIdx >= 0) {
+        pts[dragIdx] = { x: pos.x - dragOX, y: pos.y - dragOY }
+        draw()
+      } else {
+        canvas.style.cursor = hitTest(pos) >= 0 ? 'grab' : 'default'
+      }
+    }
+  })
+
+  canvas.addEventListener('mouseup', () => {
+    dragIdx = -1
+    if (mode === 'move') canvas.style.cursor = 'default'
+  })
+  canvas.addEventListener('mouseleave', () => {
+    dragIdx = -1
+  })
+
+  function catmullRomSegment(p0, p1, p2, p3, alpha, steps) {
+    const result = []
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps
+      const t2 = t * t
+      const t3 = t2 * t
+      const x =
+        0.5 *
+        (2 * p1.x +
+          (-p0.x + p2.x) * t +
+          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3)
+      const y =
+        0.5 *
+        (2 * p1.y +
+          (-p0.y + p2.y) * t +
+          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+      result.push({ x, y })
+    }
+    return result
+  }
+
+  function buildSpline(points, tension) {
+    const n = points.length
+    if (n < 2) return []
+    const STEPS = 20
+    const result = []
+
+    for (let i = 0; i < n; i++) {
+      const p0 = points[(i - 1 + n) % n]
+      const p1 = points[i]
+      const p2 = points[(i + 1) % n]
+      const p3 = points[(i + 2) % n]
+
+      const seg = catmullRomSegment(p0, p1, p2, p3, tension, STEPS)
+      if (i < n - 1) {
+        result.push(...seg.slice(0, -1))
+      } else {
+        result.push(...seg.slice(0, -1))
+      }
+    }
+    return result
+  }
+
+  function lerpSpline(points, tension) {
+    if (tension <= 0) {
+      return points.map((p) => ({ x: p.x, y: p.y }))
+    }
+    const smooth = buildSpline(points, 1)
+    if (tension >= 1) return smooth
+    return smooth.map((sp, i) => {
+      const straight = points[Math.round((i * points.length) / smooth.length) % points.length]
+      return {
+        x: sp.x * tension + straight.x * (1 - tension),
+        y: sp.y * tension + straight.y * (1 - tension)
+      }
+    })
+  }
+
+  function draw() {
+    const W = canvas.width,
+      H = canvas.height
+    ctx.clearRect(0, 0, W, H)
+    ctx.fillStyle = '#c9e0c0'
+    ctx.fillRect(0, 0, W, H)
+
+    document.getElementById('st-pts').textContent = pts.length
+
+    const tension = parseFloat(document.getElementById('tension').value)
+    const n = pts.length
+
+    if (n >= 3) {
+      const curve = buildSpline(pts, tension)
+      ctx.beginPath()
+      ctx.moveTo(curve[0].x, curve[0].y)
+      for (let i = 1; i < curve.length; i++) ctx.lineTo(curve[i].x, curve[i].y)
+      ctx.closePath()
+      ctx.fillStyle = '#5a9e4f'
+      ctx.fill()
+      ctx.strokeStyle = '#3b6d11'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    } else if (n === 2) {
+      ctx.beginPath()
+      ctx.moveTo(pts[0].x, pts[0].y)
+      ctx.lineTo(pts[1].x, pts[1].y)
+      ctx.strokeStyle = '#3b6d11'
+      ctx.lineWidth = 2
+      ctx.setLineDash([6, 4])
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    if (n === 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'
+      ctx.font = '14px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('Click anywhere to start placing perimeter points', W / 2, H / 2)
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = 'rgba(0,0,0,0.13)'
+      ctx.fillText('Shape fills in after 3 points', W / 2, H / 2 + 22)
+      ctx.textAlign = 'left'
+    }
+
+    pts.forEach((p, i) => {
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, R, 0, Math.PI * 2)
+      ctx.fillStyle = i === 0 ? '#fff' : 'rgba(255,255,255,0.92)'
+      ctx.fill()
+      ctx.strokeStyle = i === 0 ? '#e03c2a' : '#3b6d11'
+      ctx.lineWidth = i === 0 ? 2.5 : 1.5
+      ctx.stroke()
+      ctx.fillStyle = i === 0 ? '#e03c2a' : '#27500a'
+      ctx.font = 'bold 8px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(i + 1, p.x, p.y)
+    })
+
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'alphabetic'
+  }
+
+  function undo() {
+    if (pts.length) {
+      pts.pop()
+      draw()
+    }
+  }
+  function clearAll() {
+    pts = []
+    draw()
+  }
+
+  syncSize()
+  draw()
+
+  new ResizeObserver(() => {
+    syncSize()
+    draw()
+  }).observe(container)
+</script>
