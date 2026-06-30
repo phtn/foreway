@@ -10,5 +10,5 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["index.ts", "src/**/*.ts", "src/**/*.tsx", "global.d.ts"]
+  "include": ["index.ts", "react.ts", "core.ts", "src/**/*.ts", "src/**/*.tsx", "global.d.ts"]
 }

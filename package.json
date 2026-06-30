@@ -1,9 +1,12 @@
 {
   "name": "foreway",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "author": {
     "name": "phtn",
     "url": "https://github.com/phtn"
+  },
+  "repository": {
+    "url": "https://github.com/phtn/foreway.git"
   },
   "description": "React components and canvas utilities for building interactive golf course maps.",
   "keywords": [
@@ -26,13 +29,21 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && bun build ./index.ts --outdir ./dist --target browser --external react --external react-dom && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && bun build ./index.ts --outfile ./dist/index.js --target browser --format esm --external react --external react-dom --production --banner \"'use client';\" && bun build ./react.ts --outfile ./dist/react.js --target browser --format esm --external react --external react-dom --production --banner \"'use client';\" && bun build ./core.ts --outfile ./dist/core.js --target browser --format esm --external react --external react-dom --production && tsc -p tsconfig.build.json",
     "dev": "bun --hot ./dev-server.ts",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "bun run build",

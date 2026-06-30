@@ -22,6 +22,22 @@ npm install foreway
 bun add react react-dom
 ```
 
+React components can be imported from the package root or explicitly from
+`foreway/react`:
+
+```tsx
+import { CourseMap, CourseShapeBuilder } from "foreway";
+// or
+import { CourseMap, CourseShapeBuilder } from "foreway/react";
+```
+
+Frameworks with React Server Components can import server-safe drawing helpers
+from `foreway/core`:
+
+```ts
+import { drawCourseShape, getFitViewport } from "foreway/core";
+```
+
 For local development before the package is published, install from this folder:
 
 ```sh
