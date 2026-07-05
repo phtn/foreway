@@ -22,10 +22,18 @@ import type {
 } from './types'
 
 const MODES: CourseBuilderMode[] = ['place', 'move', 'erase']
+const LAYERS: CourseBuilderLayer[] = ['course', 'sand', 'pond', 'arrow', 'hole']
 const MODE_LABELS: Record<CourseBuilderMode, string> = {
   place: 'Place',
   move: 'Move',
   erase: 'Erase'
+}
+const LAYER_LABELS: Record<CourseBuilderLayer, string> = {
+  course: 'Course',
+  sand: 'Sand',
+  pond: 'Pond',
+  arrow: 'Arrow',
+  hole: 'Hole'
 }
 const HINTS: Record<CourseBuilderMode, string> = {
   place: 'Click to add, drag a dot to move',
@@ -37,7 +45,7 @@ const TIPS: Record<CourseBuilderMode, string> = {
   move: 'Add or drag',
   erase: 'Click to delete'
 }
-const DEFAULT_HEIGHT = 500
+const DEFAULT_HEIGHT = 720
 const DEFAULT_TENSION = 0.5
 const DEFAULT_POINT_RADIUS = 7
 const DEFAULT_BACKDROP_OPACITY = 0.55
@@ -90,7 +98,9 @@ function cloneDetails(details: CourseDetail[]): CourseDetail[] {
   }))
 }
 
-function getPointerPosition(event: ReactPointerEvent<HTMLCanvasElement> | ReactWheelEvent<HTMLCanvasElement>): CoursePoint {
+function getPointerPosition(
+  event: ReactPointerEvent<HTMLCanvasElement> | ReactWheelEvent<HTMLCanvasElement>
+): CoursePoint {
   const rect = event.currentTarget.getBoundingClientRect()
 
   return {
@@ -153,18 +163,31 @@ const styles = {
     borderColor: 'var(--foreway-border, #c6d0bf)',
     borderRadius: 8,
     overflow: 'hidden',
-    background: 'var(--foreway-surface, #f8faf7)'
+    background: 'var(--foreway-surface, #f8faf7)',
+    height: '100%'
+  },
+  workArea: {
+    display: 'flex',
+    flex: '1 1 auto',
+    minHeight: 0,
+    minWidth: 0
   },
   toolbar: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '10px 14px',
-    background: 'var(--foreway-toolbar, #f8faf7)',
-    borderBottomWidth: 0.5,
-    borderBottomStyle: 'solid',
-    borderBottomColor: 'var(--foreway-border, #c6d0bf)',
-    flexWrap: 'wrap'
+    flex: '0 0 264px',
+    flexDirection: 'column',
+    gap: 14,
+    minHeight: 0,
+    overflowY: 'auto',
+    padding: 14,
+    background: 'var(--foreway-toolbar, #f0f0f0c0)',
+    borderRightWidth: 0.5,
+    borderRightStyle: 'solid',
+    borderRightColor: 'var(--foreway-border, #c6d0bf)'
+  },
+  toolbarHeader: {
+    display: 'grid',
+    gap: 4
   },
   title: {
     fontSize: 13,
@@ -172,23 +195,39 @@ const styles = {
     color: 'var(--foreway-text, #1f2a1d)',
     marginRight: 4
   },
-  separator: {
-    width: 1,
-    height: 20,
-    background: 'var(--foreway-border, #c6d0bf)',
-    margin: '0 2px',
-    flexShrink: 0
+  section: {
+    display: 'grid',
+    gap: 8
+  },
+  sectionTitle: {
+    color: 'var(--foreway-text-muted, #6f7d69)',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0,
+    textTransform: 'uppercase'
+  },
+  buttonGrid: {
+    display: 'grid',
+    gap: 6,
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'
+  },
+  sidebarButton: {
+    justifyContent: 'center',
+    width: '100%'
   },
   button: {
+    alignItems: 'center',
+    display: 'inline-flex',
     fontFamily: 'inherit',
     fontSize: 12,
+    justifyContent: 'center',
     padding: '5px 12px',
     minHeight: 30,
     borderRadius: 6,
     borderWidth: 0.5,
     borderStyle: 'solid',
     borderColor: 'var(--foreway-border-strong, #9aa991)',
-    background: 'transparent',
+    background: '#fafafa',
     color: 'var(--foreway-text-secondary, #4f5f49)',
     cursor: 'pointer'
   },
@@ -205,15 +244,17 @@ const styles = {
   label: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 6,
     fontSize: 12,
     color: 'var(--foreway-text-secondary, #4f5f49)'
   },
   range: {
-    width: 84
+    width: 112
   },
   select: {
     minHeight: 30,
+    width: 112,
     borderWidth: 0.5,
     borderStyle: 'solid',
     borderColor: 'var(--foreway-border-strong, #9aa991)',
@@ -241,11 +282,13 @@ const styles = {
   hint: {
     fontSize: 11,
     color: 'var(--foreway-text-muted, #6f7d69)',
-    marginLeft: 'auto'
+    lineHeight: 1.35
   },
   canvasContainer: {
     position: 'relative',
     width: '100%',
+    flex: '1 1 auto',
+    minHeight: 0,
     background: '#c9e0c0'
   },
   canvas: {
@@ -727,7 +770,11 @@ export function CourseShapeBuilder({
           detail.id === activeDetail.id
             ? {
                 ...detail,
-                points: [...detail.points.slice(0, insertionIndex), placement.point, ...detail.points.slice(insertionIndex)]
+                points: [
+                  ...detail.points.slice(0, insertionIndex),
+                  placement.point,
+                  ...detail.points.slice(insertionIndex)
+                ]
               }
             : detail
         )
@@ -747,7 +794,12 @@ export function CourseShapeBuilder({
         return currentViewport
       }
 
-      const worldPosition = screenToWorld(screenPosition, currentViewport.scale, currentViewport.offsetX, currentViewport.offsetY)
+      const worldPosition = screenToWorld(
+        screenPosition,
+        currentViewport.scale,
+        currentViewport.offsetX,
+        currentViewport.offsetY
+      )
 
       return {
         scale: nextScale,
@@ -965,7 +1017,7 @@ export function CourseShapeBuilder({
                         points: detail.points.filter((_, pointIndex) => pointIndex !== detailPointIndex)
                       }
                     : detail
-            )
+                )
           )
         }
         return
@@ -997,7 +1049,20 @@ export function CourseShapeBuilder({
       }
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [activeDetailId, activeLayer, activeMode, details, disabled, pointRadius, points, setDetails, setPoints, viewport.offsetX, viewport.offsetY, viewport.scale]
+    [
+      activeDetailId,
+      activeLayer,
+      activeMode,
+      details,
+      disabled,
+      pointRadius,
+      points,
+      setDetails,
+      setPoints,
+      viewport.offsetX,
+      viewport.offsetY,
+      viewport.scale
+    ]
   )
 
   const onPointerMove = useCallback(
@@ -1076,12 +1141,27 @@ export function CourseShapeBuilder({
       const hoverIndex =
         activeLayer === 'course'
           ? findPointAt(points, position, hitRadius)
-          : [...details].reverse().some((detail) => detail.type === activeLayer && findPointAt(detail.points, position, hitRadius) >= 0)
+          : [...details]
+                .reverse()
+                .some((detail) => detail.type === activeLayer && findPointAt(detail.points, position, hitRadius) >= 0)
             ? 0
             : -1
       setCursor(hoverIndex >= 0 ? 'grab' : 'crosshair')
     },
-    [activeDetailId, activeLayer, activeMode, details, disabled, pointRadius, points, setDetails, setPoints, viewport.offsetX, viewport.offsetY, viewport.scale]
+    [
+      activeDetailId,
+      activeLayer,
+      activeMode,
+      details,
+      disabled,
+      pointRadius,
+      points,
+      setDetails,
+      setPoints,
+      viewport.offsetX,
+      viewport.offsetY,
+      viewport.scale
+    ]
   )
 
   const stopDragging = useCallback(
@@ -1131,189 +1211,239 @@ export function CourseShapeBuilder({
   return (
     <section className={joinClassNames('foreway-builder', className)} style={{ ...styles.wrap, ...style }}>
       <h2 style={styles.srOnly}>{canvasLabel}</h2>
-      <div style={styles.toolbar}>
-        <span style={styles.title}>Course builder</span>
-        <span aria-hidden='true' style={styles.separator} />
-        {(['course', 'sand', 'pond', 'arrow', 'hole'] as CourseBuilderLayer[]).map((layer) => (
-          <button
-            key={layer}
-            type='button'
-            aria-pressed={activeLayer === layer}
-            disabled={disabled}
-            onClick={() => {
-              setActiveLayer(layer)
-              if (layer === 'course') {
-                setActiveDetailId(null)
-              }
-            }}
-            style={{
-              ...styles.button,
-              ...(activeLayer === layer ? styles.activeButton : null)
-            }}>
-            {layer === 'course' ? 'Course' : layer === 'sand' ? 'Sand' : layer === 'pond' ? 'Pond' : layer === 'arrow' ? 'Arrow' : 'Hole'}
-          </button>
-        ))}
-        <button type='button' disabled={disabled || activeLayer === 'course' || activeLayer === 'hole'} onClick={startNewDetail} style={styles.button}>
-          New detail
-        </button>
-        {activeLayer !== 'course' ? (
-          <label style={styles.label}>
-            Detail color
-            <input
-              type='color'
-              value={selectedDetailColorInputValue}
-              disabled={disabled || !selectedDetail}
-              onChange={(event) => setSelectedDetailColorValue(event.currentTarget.value)}
-              style={styles.colorInput}
-            />
-          </label>
-        ) : null}
-        <span aria-hidden='true' style={styles.separator} />
-        {MODES.map((builderMode) => (
-          <button
-            key={builderMode}
-            type='button'
-            aria-pressed={activeMode === builderMode}
-            disabled={disabled}
-            onClick={() => setMode(builderMode)}
-            style={{
-              ...styles.button,
-              ...(activeMode === builderMode ? styles.activeButton : null)
-            }}>
-            {MODE_LABELS[builderMode]}
-          </button>
-        ))}
-        <span aria-hidden='true' style={styles.separator} />
-        <button type='button' disabled={disabled || points.length === 0} onClick={undo} style={styles.button}>
-          Undo
-        </button>
-        <button
-          type='button'
-          disabled={disabled || points.length === 0}
-          onClick={clearAll}
-          style={{ ...styles.button, ...styles.dangerButton }}>
-          Clear
-        </button>
-        <button
-          type='button'
-          disabled={disabled || details.length === 0}
-          onClick={clearDetails}
-          style={{ ...styles.button, ...styles.dangerButton }}>
-          Clear details
-        </button>
-        <button type='button' disabled={disabled} onClick={() => setShowNodesValue(!activeShowNodes)} style={styles.button}>
-          {activeShowNodes ? 'Hide nodes' : 'Show nodes'}
-        </button>
-        <button type='button' onClick={fitShape} style={styles.button}>
-          Fit shape
-        </button>
-        <button type='button' onClick={resetZoom} style={styles.button}>
-          Reset zoom
-        </button>
-        <button type='button' onClick={downloadDrawingJson} style={styles.button}>
-          Download JSON
-        </button>
-        <span aria-hidden='true' style={styles.separator} />
-        <label style={styles.label}>
-          Shape surface
-          <select
-            value={activeShapeFillStyle}
-            disabled={disabled}
-            onChange={(event) => setShapeFillStyleValue(event.currentTarget.value as CourseShapeFillStyle)}
-            style={styles.select}>
-            <option value='terrain'>Terrain</option>
-            <option value='solid'>Solid</option>
-          </select>
-        </label>
-        <label style={styles.label}>
-          Shape color
-          <input
-            type='color'
-            value={activeFillColorInputValue}
-            disabled={disabled}
-            onChange={(event) => setFillColorValue(event.currentTarget.value)}
-            style={styles.colorInput}
-          />
-        </label>
-        <label style={styles.label}>
-          Shape opacity
-          <input
-            type='range'
-            min={0}
-            max={1}
-            step={0.05}
-            value={activeFillOpacity}
-            disabled={disabled}
-            onChange={(event) => setFillOpacityValue(event.currentTarget.valueAsNumber)}
-            style={styles.range}
-          />
-        </label>
-        <span aria-hidden='true' style={styles.separator} />
-        <input
-          ref={fileInputRef}
-          type='file'
-          accept='image/*'
-          onChange={uploadBackdropImage}
-          style={styles.fileInput}
-        />
-        <button type='button' disabled={disabled} onClick={() => fileInputRef.current?.click()} style={styles.button}>
-          Upload guide
-        </button>
-        <button
-          type='button'
-          disabled={disabled || !hasBackdropImage}
-          onClick={clearBackdropImage}
-          style={{ ...styles.button, ...styles.dangerButton }}>
-          Clear guide
-        </button>
-        <label style={styles.label}>
-          Guide opacity
-          <input
-            type='range'
-            min={0}
-            max={1}
-            step={0.05}
-            value={activeBackdropOpacity}
-            disabled={disabled || !hasBackdropImage}
-            onChange={(event) => setBackdropOpacityValue(event.currentTarget.valueAsNumber)}
-            style={styles.range}
-          />
-        </label>
-        <span aria-hidden='true' style={styles.separator} />
-        <label style={styles.label}>
-          Smoothness
-          <input
-            type='range'
-            min={0}
-            max={1}
-            step={0.05}
-            value={activeTension}
-            disabled={disabled}
-            onChange={(event) => setTensionValue(event.currentTarget.valueAsNumber)}
-            style={styles.range}
-          />
-        </label>
-        <span aria-live='polite' style={styles.hint}>
-          {HINTS[activeMode]}
-        </span>
-      </div>
+      <div style={styles.workArea}>
+        <aside style={styles.toolbar} aria-label='Builder controls'>
+          <div style={styles.toolbarHeader}>
+            <span style={styles.sectionTitle}>GUIDE</span>
+            <span aria-live='polite' style={styles.hint}>
+              {HINTS[activeMode]}
+            </span>
+          </div>
 
-      <div ref={containerRef} style={containerStyle}>
-        <canvas
-          ref={canvasRef}
-          aria-label={canvasLabel}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={stopDragging}
-          onPointerCancel={stopDragging}
-          onPointerLeave={stopDragging}
-          onWheel={onWheel}
-          role='img'
-          style={{
-            ...styles.canvas,
-            cursor: disabled ? 'not-allowed' : cursor
-          }}
-        />
+          <section style={styles.section} aria-label='Layer controls'>
+            <span style={styles.sectionTitle}>Layer</span>
+            <div style={styles.buttonGrid}>
+              {LAYERS.map((layer) => (
+                <button
+                  key={layer}
+                  type='button'
+                  aria-pressed={activeLayer === layer}
+                  disabled={disabled}
+                  onClick={() => {
+                    setActiveLayer(layer)
+                    if (layer === 'course') {
+                      setActiveDetailId(null)
+                    }
+                  }}
+                  style={{
+                    ...styles.button,
+                    ...styles.sidebarButton,
+                    ...(activeLayer === layer ? styles.activeButton : null)
+                  }}>
+                  {LAYER_LABELS[layer]}
+                </button>
+              ))}
+            </div>
+            <button
+              type='button'
+              disabled={disabled || activeLayer === 'course' || activeLayer === 'hole'}
+              onClick={startNewDetail}
+              style={{ ...styles.button, ...styles.sidebarButton }}>
+              New detail
+            </button>
+            {activeLayer !== 'course' ? (
+              <label style={styles.label}>
+                Detail color
+                <input
+                  type='color'
+                  value={selectedDetailColorInputValue}
+                  disabled={disabled || !selectedDetail}
+                  onChange={(event) => setSelectedDetailColorValue(event.currentTarget.value)}
+                  style={styles.colorInput}
+                />
+              </label>
+            ) : null}
+          </section>
+
+          <section style={styles.section} aria-label='Mode controls'>
+            <span style={styles.sectionTitle}>Mode</span>
+            <div style={styles.buttonGrid}>
+              {MODES.map((builderMode) => (
+                <button
+                  key={builderMode}
+                  type='button'
+                  aria-pressed={activeMode === builderMode}
+                  disabled={disabled}
+                  onClick={() => setMode(builderMode)}
+                  style={{
+                    ...styles.button,
+                    ...styles.sidebarButton,
+                    ...(activeMode === builderMode ? styles.activeButton : null)
+                  }}>
+                  {MODE_LABELS[builderMode]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section style={styles.section} aria-label='Edit controls'>
+            <span style={styles.sectionTitle}>Edit</span>
+            <div style={styles.buttonGrid}>
+              <button
+                type='button'
+                disabled={disabled || points.length === 0}
+                onClick={undo}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                Undo
+              </button>
+              <button
+                type='button'
+                disabled={disabled || points.length === 0}
+                onClick={clearAll}
+                style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
+                Clear
+              </button>
+            </div>
+            <button
+              type='button'
+              disabled={disabled || details.length === 0}
+              onClick={clearDetails}
+              style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
+              Clear details
+            </button>
+            <button type='button' onClick={downloadDrawingJson} style={{ ...styles.button, ...styles.sidebarButton }}>
+              Download JSON
+            </button>
+          </section>
+
+          <section style={styles.section} aria-label='View controls'>
+            <span style={styles.sectionTitle}>View</span>
+            <div style={styles.buttonGrid}>
+              <button
+                type='button'
+                disabled={disabled}
+                onClick={() => setShowNodesValue(!activeShowNodes)}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                {activeShowNodes ? 'Hide nodes' : 'Show nodes'}
+              </button>
+              <button type='button' onClick={fitShape} style={{ ...styles.button, ...styles.sidebarButton }}>
+                Fit shape
+              </button>
+            </div>
+            <button type='button' onClick={resetZoom} style={{ ...styles.button, ...styles.sidebarButton }}>
+              Reset zoom
+            </button>
+          </section>
+
+          <section style={styles.section} aria-label='Shape style controls'>
+            <span style={styles.sectionTitle}>Shape</span>
+            <label style={styles.label}>
+              Surface
+              <select
+                value={activeShapeFillStyle}
+                disabled={disabled}
+                onChange={(event) => setShapeFillStyleValue(event.currentTarget.value as CourseShapeFillStyle)}
+                style={styles.select}>
+                <option value='terrain'>Terrain</option>
+                <option value='solid'>Solid</option>
+              </select>
+            </label>
+            <label style={styles.label}>
+              Color
+              <input
+                type='color'
+                value={activeFillColorInputValue}
+                disabled={disabled}
+                onChange={(event) => setFillColorValue(event.currentTarget.value)}
+                style={styles.colorInput}
+              />
+            </label>
+            <label style={styles.label}>
+              Opacity
+              <input
+                type='range'
+                min={0}
+                max={1}
+                step={0.05}
+                value={activeFillOpacity}
+                disabled={disabled}
+                onChange={(event) => setFillOpacityValue(event.currentTarget.valueAsNumber)}
+                style={styles.range}
+              />
+            </label>
+            <label style={styles.label}>
+              Smoothness
+              <input
+                type='range'
+                min={0}
+                max={1}
+                step={0.05}
+                value={activeTension}
+                disabled={disabled}
+                onChange={(event) => setTensionValue(event.currentTarget.valueAsNumber)}
+                style={styles.range}
+              />
+            </label>
+          </section>
+
+          <section style={styles.section} aria-label='Guide controls'>
+            <span style={styles.sectionTitle}>Guide</span>
+            <input
+              ref={fileInputRef}
+              type='file'
+              accept='image/*'
+              onChange={uploadBackdropImage}
+              style={styles.fileInput}
+            />
+            <div style={styles.buttonGrid}>
+              <button
+                type='button'
+                disabled={disabled}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                Upload
+              </button>
+              <button
+                type='button'
+                disabled={disabled || !hasBackdropImage}
+                onClick={clearBackdropImage}
+                style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
+                Clear
+              </button>
+            </div>
+            <label style={styles.label}>
+              Opacity
+              <input
+                type='range'
+                min={0}
+                max={1}
+                step={0.05}
+                value={activeBackdropOpacity}
+                disabled={disabled || !hasBackdropImage}
+                onChange={(event) => setBackdropOpacityValue(event.currentTarget.valueAsNumber)}
+                style={styles.range}
+              />
+            </label>
+          </section>
+        </aside>
+
+        <div ref={containerRef} style={containerStyle}>
+          <canvas
+            ref={canvasRef}
+            aria-label={canvasLabel}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={stopDragging}
+            onPointerCancel={stopDragging}
+            onPointerLeave={stopDragging}
+            onWheel={onWheel}
+            role='img'
+            style={{
+              ...styles.canvas,
+              cursor: disabled ? 'not-allowed' : cursor
+            }}
+          />
+        </div>
       </div>
 
       <div style={styles.statusbar}>
@@ -1326,7 +1456,9 @@ export function CourseShapeBuilder({
           Details
         </div>
         <div style={{ ...styles.status, ...styles.statusLast }}>
-          <strong style={styles.statusValue}>{activeLayer === 'course' ? MODE_LABELS[activeMode] : `${activeLayer} ${TIPS[activeMode]}`}</strong>
+          <strong style={styles.statusValue}>
+            {activeLayer === 'course' ? MODE_LABELS[activeMode] : `${activeLayer} ${TIPS[activeMode]}`}
+          </strong>
           Tip
         </div>
       </div>

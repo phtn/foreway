@@ -76,17 +76,19 @@ function DevPlayground() {
       <header className='dev-header'>
         <div>
           <p className='eyebrow'>Foreway</p>
-          <h1>Course shape builder</h1>
         </div>
-        <div className='header-actions'>
-          <button type='button' onClick={resetSample}>
-            Load sample
+        <div className='header-actions' style={{ border: '1px solid #ccc' }}>
+          <button type='button' onClick={resetSample} style={{ borderRadius: 0, border: 0 }}>
+            Sample Course
           </button>
-          <button type='button' onClick={() => setDetails(cloneDetails(STARTER_COURSE.details))}>
-            Load details
+          <button
+            type='button'
+            onClick={() => setDetails(cloneDetails(STARTER_COURSE.details))}
+            style={{ borderRadius: 0, border: 0 }}>
+            Sample Details
           </button>
-          <button type='button' onClick={() => setPoints([])}>
-            Empty canvas
+          <button type='button' onClick={() => setPoints([])} style={{ borderRadius: 0, border: 0 }}>
+            Clear Canvas
           </button>
         </div>
       </header>
@@ -111,7 +113,7 @@ function DevPlayground() {
             showBoardGrid={STARTER_COURSE.style.showBoardGrid}
             boardGridColor={STARTER_COURSE.style.boardGridColor}
             boardGridSize={STARTER_COURSE.style.boardGridSize}
-            height={560}
+            height='100%'
           />
         </section>
 
