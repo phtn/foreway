@@ -1,6 +1,6 @@
 :root {
-  color: #1f2a1d;
-  background: #f4f6f2;
+  color: #20281e;
+  background: #eef1eb;
   font-family:
     Inter,
     ui-sans-serif,
@@ -29,19 +29,21 @@ body {
 }
 
 button {
-  border: 0.5px solid #aab6a4;
-  border-radius: 6px;
+  border: 1px solid #d6dccf;
+  border-radius: 7px;
   background: #ffffff;
-  color: #24321f;
+  box-shadow: 0 1px 1px rgba(32, 40, 30, 0.04);
+  color: #3f483c;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 650;
   min-height: 34px;
-  padding: 7px 12px;
+  padding: 7px 11px;
 }
 
 button:hover {
-  border-color: #5a9e4f;
+  border-color: #9eaa96;
 }
 
 .dev-shell {
@@ -53,6 +55,8 @@ button:hover {
 
 .dev-header {
   align-items: end;
+  background: #f7f8f5;
+  border-bottom: 1px solid #dfe4da;
   display: flex;
   gap: 20px;
   justify-content: space-between;
@@ -62,7 +66,7 @@ button:hover {
 }
 
 .eyebrow {
-  color: #5d4d34;
+  color: #667260;
   font-size: 12px;
   font-weight: 700;
   margin: 0 0 4px;
@@ -70,8 +74,9 @@ button:hover {
 }
 
 h1 {
-  font-size: 28px;
-  font-weight: 720;
+  color: #20281e;
+  font-size: 26px;
+  font-weight: 760;
   line-height: 1.15;
   margin: 0;
 }
@@ -79,18 +84,18 @@ h1 {
 .header-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0px;
+  gap: 8px;
   justify-content: flex-end;
 }
 
 .dev-layout {
   display: grid;
   flex: 1;
-  gap: 18px;
+  gap: 16px;
   grid-template-columns: minmax(0, 1fr) 380px;
   margin: 0;
   min-height: 0;
-  padding: 0 24px 24px;
+  padding: 16px 24px 24px;
   /*max-width: 1240px;*/
 }
 
@@ -101,9 +106,10 @@ h1 {
 }
 
 .inspect-pane {
-  background: #ffffff;
-  border: 0.5px solid #d4dbd0;
+  background: #fbfcf8;
+  border: 1px solid #d9dfd4;
   border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(31, 42, 29, 0.06);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -120,13 +126,15 @@ h1 {
 }
 
 .metric-grid div {
-  border-bottom: 0.5px solid #d4dbd0;
+  background: #ffffff;
+  border: 1px solid #e1e6dc;
+  border-radius: 8px;
   min-width: 0;
-  padding: 0 0 9px;
+  padding: 10px 11px;
 }
 
 .metric-grid strong {
-  /*color: #2f5f28;*/
+  color: #20281e;
   display: block;
   font-size: 22px;
   font-weight: 720;
@@ -136,7 +144,7 @@ h1 {
 
 .metric-grid span,
 .code-label {
-  color: #5d6759;
+  color: #6c7667;
   display: block;
   font-size: 12px;
   font-weight: 650;
@@ -148,15 +156,16 @@ h1 {
 }
 
 .preview-panel > div {
-  border: 0.5px solid #d4dbd0;
-  border-radius: 6px;
+  border: 1px solid #e1e6dc;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 textarea {
-  background: #162015;
+  background: #172017;
   border: 0;
-  border-radius: 6px;
-  color: #e7f0e2;
+  border-radius: 8px;
+  color: #edf4e8;
   flex: 1;
   font:
     12px/1.5 ui-monospace,

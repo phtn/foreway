@@ -35,6 +35,13 @@ const LAYER_LABELS: Record<CourseBuilderLayer, string> = {
   arrow: 'Arrow',
   hole: 'Hole'
 }
+const LAYER_ACCENTS: Record<CourseBuilderLayer, string> = {
+  course: '#4f8f43',
+  sand: '#d5b466',
+  pond: '#4fa7c8',
+  arrow: '#7a8176',
+  hole: '#f1f4ec'
+}
 const HINTS: Record<CourseBuilderMode, string> = {
   place: 'Click to add, drag a dot to move',
   move: 'Click to add, drag a dot to move',
@@ -158,12 +165,14 @@ const styles = {
       "var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif)",
     display: 'flex',
     flexDirection: 'column',
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--foreway-border, #c6d0bf)',
+    borderColor: 'var(--foreway-border, #d9dfd4)',
     borderRadius: 8,
     overflow: 'hidden',
-    background: 'var(--foreway-surface, #f8faf7)',
+    background: 'var(--foreway-surface, #fbfcf8)',
+    boxShadow: '0 18px 50px rgba(31, 42, 29, 0.08)',
+    color: 'var(--foreway-text, #20281e)',
     height: '100%'
   },
   workArea: {
@@ -174,35 +183,41 @@ const styles = {
   },
   toolbar: {
     display: 'flex',
-    flex: '0 0 264px',
+    flex: '0 0 286px',
     flexDirection: 'column',
-    gap: 14,
+    gap: 16,
     minHeight: 0,
     overflowY: 'auto',
-    padding: 14,
-    background: 'var(--foreway-toolbar, #f0f0f0c0)',
-    borderRightWidth: 0.5,
+    padding: 16,
+    background: 'var(--foreway-toolbar, #f5f7f2)',
+    borderRightWidth: 1,
     borderRightStyle: 'solid',
-    borderRightColor: 'var(--foreway-border, #c6d0bf)'
+    borderRightColor: 'var(--foreway-border, #d9dfd4)'
   },
   toolbarHeader: {
     display: 'grid',
-    gap: 4
+    gap: 5,
+    padding: '2px 0 4px'
   },
   title: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--foreway-text, #1f2a1d)',
+    color: 'var(--foreway-text, #20281e)',
+    fontSize: 17,
+    fontWeight: 720,
+    lineHeight: 1.15,
     marginRight: 4
   },
   section: {
     display: 'grid',
-    gap: 8
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: 'var(--foreway-border-subtle, #e5e9df)',
+    gap: 4,
+    paddingTop: 14
   },
   sectionTitle: {
-    color: 'var(--foreway-text-muted, #6f7d69)',
-    fontSize: 11,
-    fontWeight: 700,
+    color: 'var(--foreway-text-muted, #727b6d)',
+    fontSize: 10,
+    fontWeight: 760,
     letterSpacing: 0,
     textTransform: 'uppercase'
   },
@@ -211,78 +226,107 @@ const styles = {
     gap: 6,
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'
   },
+  modeGrid: {
+    display: 'grid',
+    gap: 6,
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'
+  },
   sidebarButton: {
     justifyContent: 'center',
     width: '100%'
+  },
+  layerButton: {
+    gap: 7,
+    justifyContent: 'flex-start',
+    textAlign: 'left'
+  },
+  swatch: {
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'rgba(32, 40, 30, 0.16)',
+    borderRadius: 999,
+    flex: '0 0 auto',
+    height: 9,
+    width: 9
   },
   button: {
     alignItems: 'center',
     display: 'inline-flex',
     fontFamily: 'inherit',
     fontSize: 12,
+    fontWeight: 650,
     justifyContent: 'center',
-    padding: '5px 12px',
-    minHeight: 30,
-    borderRadius: 6,
-    borderWidth: 0.5,
+    lineHeight: 1.2,
+    padding: '7px 11px',
+    minHeight: 34,
+    borderRadius: 7,
+    borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--foreway-border-strong, #9aa991)',
-    background: '#fafafa',
-    color: 'var(--foreway-text-secondary, #4f5f49)',
-    cursor: 'pointer'
+    borderColor: 'var(--foreway-border-strong, #d6dccf)',
+    background: '#ffffff',
+    boxShadow: '0 1px 1px rgba(32, 40, 30, 0.04)',
+    color: 'var(--foreway-text-secondary, #3f483c)',
+    cursor: 'pointer',
+    transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease'
   },
   activeButton: {
-    background: '#e8f4e8',
-    borderColor: '#5a9e4f',
-    color: '#27500a',
-    fontWeight: 600
+    background: '#1f3b2d',
+    borderColor: '#1f3b2d',
+    boxShadow: '0 6px 14px rgba(31, 59, 45, 0.16)',
+    color: '#ffffff',
+    fontWeight: 720
   },
   dangerButton: {
-    borderColor: '#e79d9d',
-    color: '#9f2929'
+    background: '#fff8f7',
+    borderColor: '#efc5bd',
+    color: '#9b2f24'
   },
   label: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 10,
     fontSize: 12,
-    color: 'var(--foreway-text-secondary, #4f5f49)'
+    fontWeight: 620,
+    color: 'var(--foreway-text-secondary, #4b5548)',
+    minHeight: 34
   },
   range: {
-    width: 112
+    accentColor: '#1f3b2d',
+    width: 122
   },
   select: {
-    minHeight: 30,
-    width: 112,
-    borderWidth: 0.5,
+    minHeight: 34,
+    width: 122,
+    borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--foreway-border-strong, #9aa991)',
-    borderRadius: 6,
-    background: 'transparent',
-    color: 'var(--foreway-text-secondary, #4f5f49)',
+    borderColor: 'var(--foreway-border-strong, #d6dccf)',
+    borderRadius: 7,
+    background: '#ffffff',
+    color: 'var(--foreway-text-secondary, #3f483c)',
     font: 'inherit',
     fontSize: 12,
-    padding: '4px 8px'
+    fontWeight: 620,
+    padding: '5px 9px'
   },
   colorInput: {
-    width: 34,
-    height: 30,
+    width: 36,
+    height: 34,
     padding: 2,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--foreway-border-strong, #9aa991)',
-    borderRadius: 6,
-    background: 'transparent',
+    borderColor: 'var(--foreway-border-strong, #d6dccf)',
+    borderRadius: 7,
+    background: '#ffffff',
     cursor: 'pointer'
   },
   fileInput: {
     display: 'none'
   },
   hint: {
-    fontSize: 11,
-    color: 'var(--foreway-text-muted, #6f7d69)',
-    lineHeight: 1.35
+    fontSize: 12,
+    color: 'var(--foreway-text-muted, #6e7868)',
+    lineHeight: 1.4
   },
   canvasContainer: {
     position: 'relative',
@@ -299,27 +343,29 @@ const styles = {
   },
   statusbar: {
     display: 'flex',
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopStyle: 'solid',
-    borderTopColor: 'var(--foreway-border, #c6d0bf)',
-    background: 'var(--foreway-toolbar, #f8faf7)'
+    borderTopColor: 'var(--foreway-border, #d9dfd4)',
+    background: '#fbfcf8'
   },
   status: {
     flex: 1,
-    padding: '6px 12px',
+    padding: '8px 14px',
     fontSize: 11,
-    color: 'var(--foreway-text-muted, #6f7d69)',
-    borderRightWidth: 0.5,
+    color: 'var(--foreway-text-muted, #727b6d)',
+    borderRightWidth: 1,
     borderRightStyle: 'solid',
-    borderRightColor: 'var(--foreway-border, #c6d0bf)'
+    borderRightColor: 'var(--foreway-border, #e3e7de00)',
+    backgroundColor: '#222',
+    fontWeight: 650
   },
   statusLast: {
     borderRightWidth: 0
   },
   statusValue: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--foreway-text, #1f2a1d)',
+    fontSize: 14,
+    fontWeight: 760,
+    color: 'var(--foreway-text, #fafafa)',
     display: 'block'
   },
   srOnly: {
@@ -1213,13 +1259,6 @@ export function CourseShapeBuilder({
       <h2 style={styles.srOnly}>{canvasLabel}</h2>
       <div style={styles.workArea}>
         <aside style={styles.toolbar} aria-label='Builder controls'>
-          <div style={styles.toolbarHeader}>
-            <span style={styles.sectionTitle}>GUIDE</span>
-            <span aria-live='polite' style={styles.hint}>
-              {HINTS[activeMode]}
-            </span>
-          </div>
-
           <section style={styles.section} aria-label='Layer controls'>
             <span style={styles.sectionTitle}>Layer</span>
             <div style={styles.buttonGrid}>
@@ -1238,9 +1277,18 @@ export function CourseShapeBuilder({
                   style={{
                     ...styles.button,
                     ...styles.sidebarButton,
+                    ...styles.layerButton,
                     ...(activeLayer === layer ? styles.activeButton : null)
                   }}>
-                  {LAYER_LABELS[layer]}
+                  <span
+                    aria-hidden='true'
+                    style={{
+                      ...styles.swatch,
+                      background: LAYER_ACCENTS[layer],
+                      borderColor: activeLayer === layer ? 'rgba(255, 255, 255, 0.62)' : 'rgba(32, 40, 30, 0.16)'
+                    }}
+                  />
+                  <span>{LAYER_LABELS[layer]}</span>
                 </button>
               ))}
             </div>
@@ -1267,7 +1315,7 @@ export function CourseShapeBuilder({
 
           <section style={styles.section} aria-label='Mode controls'>
             <span style={styles.sectionTitle}>Mode</span>
-            <div style={styles.buttonGrid}>
+            <div style={styles.modeGrid}>
               {MODES.map((builderMode) => (
                 <button
                   key={builderMode}

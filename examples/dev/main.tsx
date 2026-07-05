@@ -75,7 +75,10 @@ function DevPlayground() {
     <main className='dev-shell'>
       <header className='dev-header'>
         <div>
-          <p className='eyebrow'>Foreway</p>
+          <p className='title'>
+            <span>Foreway</span>
+            <span style={{ color: '#777', fontSize: '12px', paddingLeft: '8px' }}>v0.1.4</span>
+          </p>
         </div>
         <div className='header-actions' style={{ border: '1px solid #ccc' }}>
           <button type='button' onClick={resetSample} style={{ borderRadius: 0, border: 0 }}>
@@ -138,7 +141,7 @@ function DevPlayground() {
           </div>
 
           <section className='preview-panel' aria-label='Read-only CourseMap preview'>
-            <span className='code-label'>CourseMap preview</span>
+            <span className='code-label'>Preview</span>
             <CourseMap drawing={drawing} height={220} />
           </section>
 
