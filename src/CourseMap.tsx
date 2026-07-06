@@ -124,7 +124,7 @@ export function CourseMap({
 
   return (
     <div ref={containerRef} className={className} style={containerStyle}>
-      <canvas ref={canvasRef} aria-label='Golf course map' role='img' style={styles.canvas} />
+      <canvas ref={canvasRef} aria-label='Golf Course Map' role='img' style={styles.canvas} />
     </div>
   )
 }

@@ -6,6 +6,11 @@ Bun.serve({
   port,
   routes: {
     "/": dev,
+    "/favicon.ico": new Response(Bun.file("./favicon.ico"), {
+      headers: {
+        "Content-Type": "image/x-icon",
+      },
+    }),
   },
   development: {
     hmr: true,

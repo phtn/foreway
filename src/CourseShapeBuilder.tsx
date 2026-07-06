@@ -18,7 +18,8 @@ import type {
   CourseDetailType,
   CoursePoint,
   CourseShapeBuilderProps,
-  CourseShapeFillStyle
+  CourseShapeFillStyle,
+  CourseViewport
 } from './types'
 
 const MODES: CourseBuilderMode[] = ['place', 'move', 'erase']
@@ -93,6 +94,12 @@ interface PendingPlacementState {
   startOffsetY: number
 }
 
+interface HistorySnapshot {
+  points: CoursePoint[]
+  details: CourseDetail[]
+  viewport: CourseViewport
+}
+
 function clonePoints(points: CoursePoint[]): CoursePoint[] {
   return points.map((point) => ({ x: point.x, y: point.y }))
 }
@@ -103,6 +110,18 @@ function cloneDetails(details: CourseDetail[]): CourseDetail[] {
     style: detail.style ? { ...detail.style } : undefined,
     points: clonePoints(detail.points)
   }))
+}
+
+function cloneViewport(viewport: CourseViewport): CourseViewport {
+  return { scale: viewport.scale, offsetX: viewport.offsetX, offsetY: viewport.offsetY }
+}
+
+function cloneHistorySnapshot(snapshot: HistorySnapshot): HistorySnapshot {
+  return {
+    points: clonePoints(snapshot.points),
+    details: cloneDetails(snapshot.details),
+    viewport: cloneViewport(snapshot.viewport)
+  }
 }
 
 function getPointerPosition(
@@ -211,7 +230,7 @@ const styles = {
     borderTopWidth: 1,
     borderTopStyle: 'solid',
     borderTopColor: 'var(--foreway-border-subtle, #e5e9df)',
-    gap: 4,
+    gap: 2,
     paddingTop: 14
   },
   sectionTitle: {
@@ -229,7 +248,7 @@ const styles = {
   modeGrid: {
     display: 'grid',
     gap: 6,
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'
   },
   sidebarButton: {
     justifyContent: 'center',
@@ -310,9 +329,9 @@ const styles = {
     padding: '5px 9px'
   },
   colorInput: {
-    width: 36,
+    width: '100%',
     height: 34,
-    padding: 2,
+    padding: 0,
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--foreway-border-strong, #d6dccf)',
@@ -433,11 +452,20 @@ export function CourseShapeBuilder({
   const panRef = useRef<PanState | null>(null)
   const pendingPlacementRef = useRef<PendingPlacementState | null>(null)
   const localBackdropUrlRef = useRef<string | null>(null)
+  const hasFitInitialViewportRef = useRef(false)
+  const shouldFitInitialViewportRef = useRef(
+    (value ?? defaultValue).length > 0 || (detailsValue ?? defaultDetails).some((detail) => detail.points.length > 0)
+  )
+  const historyRef = useRef<HistorySnapshot[]>([])
+  const redoHistoryRef = useRef<HistorySnapshot[]>([])
+  const latestHistoryStateRef = useRef<HistorySnapshot | null>(null)
+  const wheelHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [internalPoints, setInternalPoints] = useState<CoursePoint[]>(() => clonePoints(defaultValue))
   const [internalDetails, setInternalDetails] = useState<CourseDetail[]>(() => cloneDetails(defaultDetails))
   const [internalMode, setInternalMode] = useState<CourseBuilderMode>(defaultMode)
   const [activeLayer, setActiveLayer] = useState<CourseBuilderLayer>('course')
   const [activeDetailId, setActiveDetailId] = useState<string | null>(null)
+  const [pendingNewDetailId, setPendingNewDetailId] = useState<string | null>(null)
   const [internalTension, setInternalTension] = useState(defaultTension)
   const [internalFillColor, setInternalFillColor] = useState(defaultFillColor)
   const [internalFillOpacity, setInternalFillOpacity] = useState(defaultFillOpacity)
@@ -449,9 +477,12 @@ export function CourseShapeBuilder({
   const [viewport, setViewport] = useState({ scale: 1, offsetX: 0, offsetY: 0 })
   const [cursor, setCursor] = useState('crosshair')
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
+  const [historyDepth, setHistoryDepth] = useState(0)
+  const [redoDepth, setRedoDepth] = useState(0)
 
   const points = value ?? internalPoints
   const details = detailsValue ?? internalDetails
+  latestHistoryStateRef.current = { points, details, viewport }
   const activeMode = mode ?? internalMode
   const activeTension = Math.max(0, Math.min(1, tension ?? internalTension))
   const activeFillColor = fillColor ?? internalFillColor
@@ -475,6 +506,7 @@ export function CourseShapeBuilder({
     activeLayer === 'course'
       ? DEFAULT_FILL_COLOR
       : getDetailColorInputValue(selectedDetail?.style?.color ?? getDetailDefaultColor(activeLayer), activeLayer)
+  const isStartingNewDetail = Boolean(pendingNewDetailId && pendingNewDetailId === activeDetailId)
   const containerStyle = useMemo<CSSProperties>(
     () => ({
       ...styles.canvasContainer,
@@ -512,9 +544,44 @@ export function CourseShapeBuilder({
     [detailsValue, onDetailsChange]
   )
 
+  const pushHistory = useCallback(() => {
+    const snapshot = latestHistoryStateRef.current
+
+    if (!snapshot) {
+      return
+    }
+
+    historyRef.current = [...historyRef.current, cloneHistorySnapshot(snapshot)].slice(-100)
+    redoHistoryRef.current = []
+    setHistoryDepth(historyRef.current.length)
+    setRedoDepth(0)
+  }, [])
+
+  const restoreHistorySnapshot = useCallback(
+    (snapshot: HistorySnapshot) => {
+      setPoints(snapshot.points)
+      setDetails(snapshot.details)
+      setViewport(cloneViewport(snapshot.viewport))
+    },
+    [setDetails, setPoints]
+  )
+
+  const pushWheelHistory = useCallback(() => {
+    if (!wheelHistoryTimeoutRef.current) {
+      pushHistory()
+    } else {
+      clearTimeout(wheelHistoryTimeoutRef.current)
+    }
+
+    wheelHistoryTimeoutRef.current = setTimeout(() => {
+      wheelHistoryTimeoutRef.current = null
+    }, 250)
+  }, [pushHistory])
+
   const setMode = useCallback(
     (nextMode: CourseBuilderMode) => {
       dragRef.current = null
+      setPendingNewDetailId(null)
 
       if (mode === undefined) {
         setInternalMode(nextMode)
@@ -580,6 +647,7 @@ export function CourseShapeBuilder({
         return
       }
 
+      pushHistory()
       setActiveDetailId(selectedDetail.id)
       setDetails(
         details.map((detail) =>
@@ -595,7 +663,7 @@ export function CourseShapeBuilder({
         )
       )
     },
-    [activeLayer, details, selectedDetail, setDetails]
+    [activeLayer, details, pushHistory, selectedDetail, setDetails]
   )
 
   const setShapeFillStyleValue = useCallback(
@@ -664,29 +732,67 @@ export function CourseShapeBuilder({
   }, [revokeLocalBackdropUrl, setBackdropImageUrl])
 
   const undo = useCallback(() => {
-    if (points.length === 0) {
+    const snapshot = historyRef.current.pop()
+    const currentSnapshot = latestHistoryStateRef.current
+
+    if (!snapshot || !currentSnapshot) {
       return
     }
 
-    setPoints(points.slice(0, -1))
-  }, [points, setPoints])
+    dragRef.current = null
+    panRef.current = null
+    pendingPlacementRef.current = null
+    setPendingNewDetailId(null)
+    if (wheelHistoryTimeoutRef.current) {
+      clearTimeout(wheelHistoryTimeoutRef.current)
+      wheelHistoryTimeoutRef.current = null
+    }
+    redoHistoryRef.current = [...redoHistoryRef.current, cloneHistorySnapshot(currentSnapshot)].slice(-100)
+    setHistoryDepth(historyRef.current.length)
+    setRedoDepth(redoHistoryRef.current.length)
+    restoreHistorySnapshot(snapshot)
+  }, [restoreHistorySnapshot])
+
+  const redo = useCallback(() => {
+    const snapshot = redoHistoryRef.current.pop()
+    const currentSnapshot = latestHistoryStateRef.current
+
+    if (!snapshot || !currentSnapshot) {
+      return
+    }
+
+    dragRef.current = null
+    panRef.current = null
+    pendingPlacementRef.current = null
+    setPendingNewDetailId(null)
+    if (wheelHistoryTimeoutRef.current) {
+      clearTimeout(wheelHistoryTimeoutRef.current)
+      wheelHistoryTimeoutRef.current = null
+    }
+    historyRef.current = [...historyRef.current, cloneHistorySnapshot(currentSnapshot)].slice(-100)
+    setHistoryDepth(historyRef.current.length)
+    setRedoDepth(redoHistoryRef.current.length)
+    restoreHistorySnapshot(snapshot)
+  }, [restoreHistorySnapshot])
 
   const clearAll = useCallback(() => {
     if (points.length === 0) {
       return
     }
 
+    pushHistory()
     setPoints([])
-  }, [points, setPoints])
+  }, [points.length, pushHistory, setPoints])
 
   const clearDetails = useCallback(() => {
     if (details.length === 0) {
       return
     }
 
+    pushHistory()
     setDetails([])
     setActiveDetailId(null)
-  }, [details.length, setDetails])
+  }, [details.length, pushHistory, setDetails])
 
   const startNewDetail = useCallback(() => {
     if (activeLayer === 'course' || activeLayer === 'hole') {
@@ -699,17 +805,50 @@ export function CourseShapeBuilder({
       points: []
     }
 
+    pushHistory()
     setDetails([...details, nextDetail])
     setActiveDetailId(nextDetail.id)
-  }, [activeLayer, details, setDetails])
+    setPendingNewDetailId(nextDetail.id)
+
+    if (mode === undefined) {
+      setInternalMode('place')
+    }
+
+    setCursor('crosshair')
+    onModeChange?.('place')
+  }, [activeLayer, details, mode, onModeChange, pushHistory, setDetails])
+
+  const completeStartingNewDetail = useCallback(() => {
+    if (isStartingNewDetail) {
+      setPendingNewDetailId(null)
+      setMode('place')
+    }
+  }, [isStartingNewDetail, setMode])
 
   const fitShape = useCallback(() => {
+    pushHistory()
+    setViewport(getFitViewport(points, details, canvasSize.width, canvasSize.height))
+  }, [canvasSize.height, canvasSize.width, details, points, pushHistory])
+
+  useEffect(() => {
+    if (
+      hasFitInitialViewportRef.current ||
+      !shouldFitInitialViewportRef.current ||
+      canvasSize.width === 0 ||
+      canvasSize.height === 0 ||
+      (points.length === 0 && details.every((detail) => detail.points.length === 0))
+    ) {
+      return
+    }
+
+    hasFitInitialViewportRef.current = true
     setViewport(getFitViewport(points, details, canvasSize.width, canvasSize.height))
   }, [canvasSize.height, canvasSize.width, details, points])
 
   const resetZoom = useCallback(() => {
+    pushHistory()
     setViewport({ scale: 1, offsetX: 0, offsetY: 0 })
-  }, [])
+  }, [pushHistory])
 
   const downloadDrawingJson = useCallback(() => {
     const exportData = createCourseDrawingExport({
@@ -761,9 +900,12 @@ export function CourseShapeBuilder({
 
   const commitPendingPlacement = useCallback(
     (placement: PendingPlacementState) => {
+      pushHistory()
+
       if (placement.layer === 'course') {
         const insertionIndex = findInsertionIndexAt(points, placement.point)
         setPoints([...points.slice(0, insertionIndex), placement.point, ...points.slice(insertionIndex)])
+        completeStartingNewDetail()
         return
       }
 
@@ -781,6 +923,7 @@ export function CourseShapeBuilder({
         }
         setDetails([...details, nextDetail])
         setActiveDetailId(nextDetail.id)
+        completeStartingNewDetail()
         return
       }
 
@@ -793,6 +936,7 @@ export function CourseShapeBuilder({
         }
         setDetails([...details, nextDetail])
         setActiveDetailId(nextDetail.id)
+        completeStartingNewDetail()
         return
       }
 
@@ -807,6 +951,7 @@ export function CourseShapeBuilder({
               : detail
           )
         )
+        completeStartingNewDetail()
         return
       }
 
@@ -825,8 +970,9 @@ export function CourseShapeBuilder({
             : detail
         )
       )
+      completeStartingNewDetail()
     },
-    [details, points, setDetails, setPoints]
+    [completeStartingNewDetail, details, points, pushHistory, setDetails, setPoints]
   )
 
   const zoomAt = useCallback((screenPosition: CoursePoint, deltaY: number) => {
@@ -880,6 +1026,15 @@ export function CourseShapeBuilder({
   }, [])
 
   useEffect(() => revokeLocalBackdropUrl, [revokeLocalBackdropUrl])
+
+  useEffect(
+    () => () => {
+      if (wheelHistoryTimeoutRef.current) {
+        clearTimeout(wheelHistoryTimeoutRef.current)
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     if (!dragRef.current) {
@@ -973,6 +1128,7 @@ export function CourseShapeBuilder({
       const screenPosition = getPointerPosition(event)
 
       if (event.button === 1 || event.altKey || event.shiftKey) {
+        pushHistory()
         panRef.current = {
           pointerId: event.pointerId,
           startX: screenPosition.x,
@@ -993,6 +1149,7 @@ export function CourseShapeBuilder({
 
         if (activeMode === 'erase') {
           if (index >= 0) {
+            pushHistory()
             setPoints(points.filter((_, pointIndex) => pointIndex !== index))
           }
           return
@@ -1000,6 +1157,7 @@ export function CourseShapeBuilder({
 
         if (index >= 0) {
           const point = points[index]!
+          pushHistory()
           dragRef.current = {
             layer: 'course',
             index,
@@ -1053,6 +1211,7 @@ export function CourseShapeBuilder({
 
       if (activeMode === 'erase') {
         if (detailPointIndex >= 0) {
+          pushHistory()
           setDetails(
             activeDetail.type === 'hole'
               ? details.filter((detail) => detail.id !== activeDetail.id)
@@ -1071,6 +1230,7 @@ export function CourseShapeBuilder({
 
       if (detailPointIndex >= 0) {
         const point = activeDetail.points[detailPointIndex]!
+        pushHistory()
         dragRef.current = {
           layer: activeLayer,
           detailId: activeDetail.id,
@@ -1103,6 +1263,7 @@ export function CourseShapeBuilder({
       disabled,
       pointRadius,
       points,
+      pushHistory,
       setDetails,
       setPoints,
       viewport.offsetX,
@@ -1135,6 +1296,7 @@ export function CourseShapeBuilder({
         const distanceY = screenPosition.y - pendingPlacement.startY
 
         if (distanceX * distanceX + distanceY * distanceY >= PAN_START_THRESHOLD * PAN_START_THRESHOLD) {
+          pushHistory()
           pendingPlacementRef.current = null
           panRef.current = {
             pointerId: pendingPlacement.pointerId,
@@ -1202,6 +1364,7 @@ export function CourseShapeBuilder({
       disabled,
       pointRadius,
       points,
+      pushHistory,
       setDetails,
       setPoints,
       viewport.offsetX,
@@ -1249,9 +1412,10 @@ export function CourseShapeBuilder({
       }
 
       event.preventDefault()
+      pushWheelHistory()
       zoomAt(getPointerPosition(event), event.deltaY)
     },
-    [disabled, zoomAt]
+    [disabled, pushWheelHistory, zoomAt]
   )
 
   return (
@@ -1259,6 +1423,66 @@ export function CourseShapeBuilder({
       <h2 style={styles.srOnly}>{canvasLabel}</h2>
       <div style={styles.workArea}>
         <aside style={styles.toolbar} aria-label='Builder controls'>
+          {/* EDIT CONTROLS */}
+          <section style={styles.section} aria-label='Edit controls'>
+            <span style={styles.sectionTitle}>Edit</span>
+            <div style={styles.buttonGrid}>
+              <button
+                type='button'
+                disabled={disabled || historyDepth === 0}
+                onClick={undo}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                undo
+              </button>
+              <button
+                type='button'
+                disabled={disabled || redoDepth === 0}
+                onClick={redo}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                redo
+              </button>
+              <button
+                type='button'
+                disabled={disabled || points.length === 0}
+                onClick={clearAll}
+                style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
+                Clear Shape
+              </button>
+              <button
+                type='button'
+                disabled={disabled || details.length === 0}
+                onClick={clearDetails}
+                style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
+                Clear Details
+              </button>
+            </div>
+
+            <button type='button' onClick={downloadDrawingJson} style={{ ...styles.button, ...styles.sidebarButton }}>
+              Download JSON
+            </button>
+          </section>
+
+          {/* VIEW CONTROLS */}
+          <section style={styles.section} aria-label='View controls'>
+            <span style={styles.sectionTitle}>View</span>
+            <div style={styles.buttonGrid}>
+              <button
+                type='button'
+                disabled={disabled}
+                onClick={() => setShowNodesValue(!activeShowNodes)}
+                style={{ ...styles.button, ...styles.sidebarButton }}>
+                {activeShowNodes ? 'Hide nodes' : 'Show nodes'}
+              </button>
+              <button type='button' onClick={fitShape} style={{ ...styles.button, ...styles.sidebarButton }}>
+                Fit shape
+              </button>
+            </div>
+            <button type='button' onClick={resetZoom} style={{ ...styles.button, ...styles.sidebarButton }}>
+              Reset zoom
+            </button>
+          </section>
+
+          {/* LAYER SELECT */}
           <section style={styles.section} aria-label='Layer controls'>
             <span style={styles.sectionTitle}>Layer</span>
             <div style={styles.buttonGrid}>
@@ -1269,6 +1493,7 @@ export function CourseShapeBuilder({
                   aria-pressed={activeLayer === layer}
                   disabled={disabled}
                   onClick={() => {
+                    setPendingNewDetailId(null)
                     setActiveLayer(layer)
                     if (layer === 'course') {
                       setActiveDetailId(null)
@@ -1291,15 +1516,18 @@ export function CourseShapeBuilder({
                   <span>{LAYER_LABELS[layer]}</span>
                 </button>
               ))}
+              {activeLayer !== 'course' && (
+                <input
+                  type='color'
+                  value={selectedDetailColorInputValue}
+                  disabled={disabled || !selectedDetail}
+                  onChange={(event) => setSelectedDetailColorValue(event.currentTarget.value)}
+                  style={styles.colorInput}
+                />
+              )}
             </div>
-            <button
-              type='button'
-              disabled={disabled || activeLayer === 'course' || activeLayer === 'hole'}
-              onClick={startNewDetail}
-              style={{ ...styles.button, ...styles.sidebarButton }}>
-              New detail
-            </button>
-            {activeLayer !== 'course' ? (
+
+            {/*{activeLayer !== 'course' ? (
               <label style={styles.label}>
                 Detail color
                 <input
@@ -1310,79 +1538,43 @@ export function CourseShapeBuilder({
                   style={styles.colorInput}
                 />
               </label>
-            ) : null}
+            ) : null}*/}
           </section>
 
+          {/* MODE CONTROLS */}
           <section style={styles.section} aria-label='Mode controls'>
             <span style={styles.sectionTitle}>Mode</span>
             <div style={styles.modeGrid}>
+              <button
+                type='button'
+                aria-pressed={isStartingNewDetail}
+                disabled={disabled || activeLayer === 'course' || activeLayer === 'hole'}
+                onClick={startNewDetail}
+                style={{
+                  ...styles.button,
+                  ...styles.sidebarButton,
+                  ...(isStartingNewDetail ? styles.activeButton : null)
+                }}>
+                New
+              </button>
               {MODES.map((builderMode) => (
                 <button
                   key={builderMode}
                   type='button'
-                  aria-pressed={activeMode === builderMode}
+                  aria-pressed={!isStartingNewDetail && activeMode === builderMode}
                   disabled={disabled}
                   onClick={() => setMode(builderMode)}
                   style={{
                     ...styles.button,
                     ...styles.sidebarButton,
-                    ...(activeMode === builderMode ? styles.activeButton : null)
+                    ...(!isStartingNewDetail && activeMode === builderMode ? styles.activeButton : null)
                   }}>
                   {MODE_LABELS[builderMode]}
                 </button>
               ))}
             </div>
           </section>
-
-          <section style={styles.section} aria-label='Edit controls'>
-            <span style={styles.sectionTitle}>Edit</span>
-            <div style={styles.buttonGrid}>
-              <button
-                type='button'
-                disabled={disabled || points.length === 0}
-                onClick={undo}
-                style={{ ...styles.button, ...styles.sidebarButton }}>
-                Undo
-              </button>
-              <button
-                type='button'
-                disabled={disabled || points.length === 0}
-                onClick={clearAll}
-                style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
-                Clear
-              </button>
-            </div>
-            <button
-              type='button'
-              disabled={disabled || details.length === 0}
-              onClick={clearDetails}
-              style={{ ...styles.button, ...styles.sidebarButton, ...styles.dangerButton }}>
-              Clear details
-            </button>
-            <button type='button' onClick={downloadDrawingJson} style={{ ...styles.button, ...styles.sidebarButton }}>
-              Download JSON
-            </button>
-          </section>
-
-          <section style={styles.section} aria-label='View controls'>
-            <span style={styles.sectionTitle}>View</span>
-            <div style={styles.buttonGrid}>
-              <button
-                type='button'
-                disabled={disabled}
-                onClick={() => setShowNodesValue(!activeShowNodes)}
-                style={{ ...styles.button, ...styles.sidebarButton }}>
-                {activeShowNodes ? 'Hide nodes' : 'Show nodes'}
-              </button>
-              <button type='button' onClick={fitShape} style={{ ...styles.button, ...styles.sidebarButton }}>
-                Fit shape
-              </button>
-            </div>
-            <button type='button' onClick={resetZoom} style={{ ...styles.button, ...styles.sidebarButton }}>
-              Reset zoom
-            </button>
-          </section>
-
+          {/* STYLE CONTROLS */}
           <section style={styles.section} aria-label='Shape style controls'>
             <span style={styles.sectionTitle}>Shape</span>
             <label style={styles.label}>
@@ -1434,6 +1626,7 @@ export function CourseShapeBuilder({
             </label>
           </section>
 
+          {/* GUIDE SELECT */}
           <section style={styles.section} aria-label='Guide controls'>
             <span style={styles.sectionTitle}>Guide</span>
             <input
@@ -1475,6 +1668,7 @@ export function CourseShapeBuilder({
           </section>
         </aside>
 
+        {/* CANVAS */}
         <div ref={containerRef} style={containerStyle}>
           <canvas
             ref={canvasRef}

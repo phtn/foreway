@@ -10,10 +10,10 @@ import {
   type CourseDrawingExport,
   type CoursePoint
 } from '../../index'
-import pinatuboCourse from '../../src/pinatubo-complete.json'
+import starterCourse from '../../src/foreway-sample.json'
 import './styles.css'
 
-const STARTER_COURSE = pinatuboCourse as CourseDrawingExport
+const STARTER_COURSE = starterCourse as CourseDrawingExport
 
 function clonePoints(points: CoursePoint[]): CoursePoint[] {
   return points.map((point) => ({ x: point.x, y: point.y }))
@@ -43,6 +43,7 @@ function DevPlayground() {
   const [details, setDetails] = useState<CourseDetail[]>(() => cloneDetails(STARTER_COURSE.details))
   const [mode, setMode] = useState<CourseBuilderMode>('move')
   const [tension, setTension] = useState(STARTER_COURSE.style.tension)
+  const [builderRevision, setBuilderRevision] = useState(0)
   const drawing = useMemo(
     () =>
       createCourseDrawingExport({
@@ -69,6 +70,12 @@ function DevPlayground() {
     setPoints(clonePoints(STARTER_COURSE.points))
     setDetails(cloneDetails(STARTER_COURSE.details))
     setTension(STARTER_COURSE.style.tension)
+    setBuilderRevision((revision) => revision + 1)
+  }
+
+  const clearAll = () => {
+    setPoints([])
+    setDetails([])
   }
 
   return (
@@ -90,7 +97,7 @@ function DevPlayground() {
             style={{ borderRadius: 0, border: 0 }}>
             Sample Details
           </button>
-          <button type='button' onClick={() => setPoints([])} style={{ borderRadius: 0, border: 0 }}>
+          <button type='button' onClick={clearAll} style={{ borderRadius: 0, border: 0 }}>
             Clear Canvas
           </button>
         </div>
@@ -99,6 +106,7 @@ function DevPlayground() {
       <div className='dev-layout'>
         <section className='builder-pane' aria-label='Interactive builder'>
           <CourseShapeBuilder
+            key={builderRevision}
             value={points}
             onChange={setPoints}
             details={details}
